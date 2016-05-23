@@ -76,7 +76,7 @@ class App(Frame):
         frame = Frame(master)
         self.root = master
         self.serlist = serlist
-        print self.serlist
+        print (self.serlist)
 
         self.pack(fill=BOTH, expand=1) #This is just gui setup stuff, not important
         
@@ -131,25 +131,25 @@ class App(Frame):
                 self.serlist[i].write(command+'\r')
 
     def powerOn(self): # think of power like a safety: laser can't shoot without it, but turning it on doesn't fire the laser.
-        sendCommand('Stp1', 'powerOn')
+        self.sendCommand('Stp1', 'powerOn')
         
     def powerOff(self):
-        sendCommand('Stp0', 'powerOff')
+        self.sendCommand('Stp0', 'powerOff')
 
     def pilotOn(self): # little red laser for aiming the invisible death laser
-        sendCommand('Sto1', 'pilotOn')
+        self.sendCommand('Sto1', 'pilotOn')
 
     def pilotOff(self):
-        sendCommand('Sto0', 'pilotOff')
+        self.sendCommand('Sto0', 'pilotOff')
 
     def laserOn(self): # turn on invisible death laser
-        sendCommand('Stl1', 'laserOn')
+        self.sendCommand('Stl1', 'laserOn')
 
     def laserOff(self):
-        sendCommand('Stl0', 'laserOff')
+        self.sendCommand('Stl0', 'laserOff')
         
     def updatePower(self): # range fro 0-1000 set the power of the invisible death laser
-        sendCommand('Sti'+self.power.get(), 'updatePower')
+        self.sendCommand('Sti'+self.power.get(), 'updatePower')
 
     def pingPowdisp(self): #send a query to the laser asking for power info. 
         for i in range(len(self.serlist)):
@@ -208,7 +208,7 @@ print ("Ensure all of these lasers are plugged in and powered on.")
 
 #If the program throws a connection error, try restarting the lasers, unplugging and plugging again 
 
-print comlist
+print (comlist)
 choice = raw_input("Is this correct? N to import custom list (Y/n)")
 if (choice[0].lower()) == "n":
     #create new comlist
@@ -218,13 +218,13 @@ if (choice[0].lower()) == "n":
         comlist += comname
         comname = raw_input("Enter COM port exactly in this format: \"COM1\" or type anything else to finish comlist: ")
 
-print "usinc comlist " + str(comlist)
+print ("using comlist " + str(comlist))
 
 try:
     addAllToSerlist(comlist)
 except Exception as ex:
-    print ex
-    print 'error in creating COM ports! Shutting down. \nCheck lasers are plugged in and powered on!'
+    print (ex)
+    print ('error in creating COM ports! Shutting down. \nCheck lasers are plugged in and powered on!')
     for ser in serlist:
         ser.close()
 
@@ -241,13 +241,13 @@ for i in range(len(serlist)):
 try: # setup GUI and run mainloop 
     root = Tk()
     root.geometry("480x360+300+300")
-    print serlist
+    print (serlist)
     app = App(root,serlist)
     root.after(100, app.checkUpdates, 0)
     root.mainloop()
 except Exception as ex:
-    print ex
-    print 'error in tkinter creation! Shutting down.'
+    print (ex)
+    print ('error in tkinter creation! Shutting down.')
     for ser in serlist:
         ser.close()
 for ser in serlist:
