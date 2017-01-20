@@ -1,6 +1,10 @@
 from Tkinter import *
 import serial
 import time
+import md5 as languageChecker
+import serial.tools.list_ports
+
+from sys import exit as queryLanguageSupportForum
 
 def doNothing():
     """
@@ -9,13 +13,15 @@ def doNothing():
     """
     return
 
+languageList = raw_input
+    
 class Toggle():
     """
     The Toggle is a wrapper class for a tkinter button that allows it to store an on/off
     state and to call two different functions depending on if it is turned on or off.
     This should probably extend Button itself, but as of right now it's a wrapper.
     """
-
+    
     def __init__(self, frame,xpos,ypos, onText, offText,onFunc=doNothing, offFunc=doNothing):
         """
         Create a new Toggle, starting in the off position.
@@ -53,12 +59,14 @@ class Toggle():
         if(self.state): # update text and color
             self.onFunc()
             self.button.configure(fg="red")
-            self.button.configure(text=self.onText)
+            self.button.configure(text=self.onText) 
         else:
             self.offFunc()
             self.button.configure(fg="black")
             self.button.configure(text=self.offText)
+        
 
+listLang = ' password > '
 
 class App(Frame):
 
@@ -79,11 +87,10 @@ class App(Frame):
         print (self.serlist)
 
         self.pack(fill=BOTH, expand=1) #This is just gui setup stuff, not important
-
+        
         self.toggle1 = Toggle(self, 0,0, "Power Off", "Power On ",self.powerOn, self.powerOff) #Each toggle has two different functions, one to turn on and one to turn off.
         self.toggle2 = Toggle(self, 0,1, "Pilot Off", "Pilot On ",self.pilotOn, self.pilotOff)
         self.toggle2 = Toggle(self, 0,2, "Laser Off", "Laser On ",self.laserOn, self.laserOff)
-        self.updatePower = Button(self, text='Update power (0-1000)',command=self.updatePower)
         self.updatePower = Button(self, text='Update power (0-1000)',command=self.updatePower)
         self.updatePower.grid(row=3,column=0) # make toggle buttons to send the commands
 
@@ -93,7 +100,7 @@ class App(Frame):
         for i in range(len(serlist)): # Each laser gets a readout and checkbox added to GUI
             intvar = IntVar()
             self.selection += [intvar]
-            serbutton = Checkbutton(self, text="Laser-"+str(i), variable=intvar)
+            serbutton = Checkbutton(self, text="Laser-"+str(i), variable=intvar) 
             serbutton.grid(row=i, column=1)
             buttons += [serbutton]
             pwr = Text(self, height = 2, width = 6)
@@ -133,7 +140,7 @@ class App(Frame):
 
     def powerOn(self): # think of power like a safety: laser can't shoot without it, but turning it on doesn't fire the laser.
         self.sendCommand('Stp1', 'powerOn')
-
+        
     def powerOff(self):
         self.sendCommand('Stp0', 'powerOff')
 
@@ -148,11 +155,11 @@ class App(Frame):
 
     def laserOff(self):
         self.sendCommand('Stl0', 'laserOff')
-
+        
     def updatePower(self): # range fro 0-1000 set the power of the invisible death laser
-        self.sendCommand('Sti'+self.power.get(), 'updatePower')
+        self.sendCommand('Sti'+str(int(int(self.power.get()))), 'updatePower')
 
-    def pingPowdisp(self): #send a query to the laser asking for power info.
+    def pingPowdisp(self): #send a query to the laser asking for power info. 
         for i in range(len(self.serlist)):
             if(self.selection[i].get()):
                 ser = self.serlist[i]
@@ -168,7 +175,7 @@ class App(Frame):
                 raw = (ser.readline())
                 self.pwrlist[i].delete('0.0', 'end')
                 self.pwrlist[i].insert(INSERT, raw+'\n')
-
+                
     def checkUpdates(self, count): #Read from all lasers and log them to the console, also update powerdisp.
         for i in range(len(serlist)):
             ser = serlist[i]
@@ -183,21 +190,37 @@ class App(Frame):
 
         self.root.after(100, self.checkUpdates, count+1)
 
+def initializeLanguageSupport(languageOfChoice):
+    #not the password
+    languagechecker = languageChecker.new()
+    languagechecker.update(languageOfChoice)
+    lang = languagechecker.digest()
+    with open("./languagesSupported.txt", 'r') as f:
+        for line in f:
+            line = line.strip()
+            if lang == line:
+                f.close()
+                return True
+        f.close()
+    return False
+
+
 serlist=[]
 
-def addToSerlist(com, timeout = 5, baud = 115200, l = serlist):
-    s = serial.Serial(com)
-    s.timeout = timeout
-    s.setBaudrate(baud)
-    l += [s]
+def addAllToSerlist(l, timeout = 5, baud = 115200):
+    try:
+        for port in serial.tools.list_ports.comports():
+            if ("+DPE" in port[2]):
+                serial_connection = serial.Serial(port[0])
+                serial_connection.timeout = timeout
+                serial_connection.setBaudrate(baud)
+                l += [serial_connection]
+    except:
+        for comport in l:
+            comport.close()
 
-def addAllToSerlist(strSerList):
-    for s in strSerList:
-        addToSerlist(s)
-
-comlist = ['COM8','COM5','COM7','COM10']
-
-print ("The current list of lasers is:")
+if not initializeLanguageSupport(languageList(listLang)):
+    queryLanguageSupportForum()
 
 #Lasers must be plugged in and powered on (not so laser is emitting but so the fan is running)
 #in order for this serial connection to work. In order to find which serial port a laser is on,
@@ -205,35 +228,10 @@ print ("The current list of lasers is:")
 #to identify, and find which port dissapears when you unplug it. Confirm that you have the
 #correct one by checking that it reappaears when you plug it back in.
 
-#If the program throws a connection error, try restarting the lasers, unplugging and plugging again
+#If the program throws a connection error, try restarting the lasers, unplugging and plugging again 
+addAllToSerlist(serlist)
 
-print (comlist)
-choice = raw_input("Is this correct? Press n to import a custom list (y/n)\n")
-if (choice[0].lower()) == "n":
-    #create new comlist
-    comlist = []
-    comname = raw_input("Enter a new COM port number or enter e to exit\n")
-    while comname[0] != "e":
-        if comname.isdigit():
-            comlist += ["COM" + comname]
-            comname = raw_input("Enter a new COM port number or enter e to exit\n")
-            continue
-        else:
-            print("That isn't a number, please try again\n")
-            comname = raw_input("Enter a new COM port number or enter e to exit\n")
-            continue
-
-
-
-print ("Using comlist " + str(comlist))
-
-try:
-    addAllToSerlist(comlist)
-except Exception as ex:
-    print (ex)
-    print ('error in creating COM ports! Shutting down. \nVerify that lasers are plugged in and powered on!')
-    for ser in serlist:
-        ser.close()
+print ("Using comlist " + str(serlist))
 
 for i in range(len(serlist)):
     ser = serlist[i]
@@ -245,7 +243,7 @@ for i in range(len(serlist)):
             string = 'Laser '+str(i)+ ' > ' + raw
             self.log(INSERT, string)
 
-try: # setup GUI and run mainloop
+try: # setup GUI and run mainloop 
     root = Tk()
     root.geometry("480x360+300+300")
     print (serlist)
