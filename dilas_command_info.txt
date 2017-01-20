@@ -1,0 +1,231 @@
+ O~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~O
+ |     ______  _________ _        _______  _______       |
+ |    /  __  \ \__   __/| \      /  ___  \/  ____ \      |
+ |    | {  \  \   | |   | |      | |   | || /    \/      |
+ |    | |   | |   | |   | |      | |___| || \_____       |
+ |    | |   | |   | |   | |      |  ___  |\_____  \      |
+ |    | |   | |   | |   | |      | |   | |      \ |      |
+ |    | \__/  /___| |___| |____/\| |   | |/\____/ |      |
+ |    \______/ \_______/|_______/|/     \|\_______/      |                                            
+ |                                                _      |
+ |                                               | |     |
+ |   ___ ___  _ __ ___  _ __ ___   __ _ _ __   __| |___  |
+ |  / __/ _ \| '_ ` _ \| '_ ` _ \ / _` | '_ \ / _` / __| |
+ | | (_| (_) | | | | | | | | | | | (_| | | | | (_| \__ \ |
+ |  \___\___/|_| |_| |_|_| |_| |_|\__,_|_| |_|\__,_|___/ |
+ |                                                       |
+ O~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~O
+                                                          
+
+This text file is intended as a summary of the Dilas laser control commands that can be sent to
+the Dilas Mini 50 - 50W 808nm USB Laser. For more info, see 
+M:\Manuals-Books\Dilas Mini 50 - 50W 808nm USB Laser\THIS_IS_THE_IMPORTANT_ONE.pdf, especially
+pages 51-63.
+
+This text file is provided without any warranty or liscence or any legal stuff. Anything could
+be wrong or inaccurate, let me know and I'll fix it.
+
+If you have additional questions, please ask Kenyon Prater at kenyonprater3.14 at gmail dot com
+
+
+ =====================================================================================================
+    Part 1: Structure
+ =====================================================================================================
+
+All dilas commands are transmitted throught the serial port as a 3 or 4 letter string specifying the 
+command, followed if needed by a number that depends on the command. Commands start with a capital
+letter.
+
+Responses can be read through the serial port and depend on the command, but typically:
+ * Commands that set the state of the laser respond "OK" when they work and "ERROR"
+ * Commands that read the state of the laser respond with the value.
+
+A few examples of proper commands:
+
+Stp1 - SETS the power of the laser to 1 (on)
+Rdo - READS the laser power (Note this one doesn't need a number as an argument)
+
+A few examples of improper commands:
+
+stp1 - commands are case sensitive
+Stp - needs an argument
+Rdo13 - doesn't accept an argument
+Dothething1 - that's not actually a command, you can't just tell it to do the thing.
+
+ =====================================================================================================
+    Part 2: List
+ =====================================================================================================
+
+This is only a partial list, please see the pdf file I mentioned (THIS_IS_THE_IMPORTANT_ONE.pdf) pg 51
+for a full list.
+
+Command | Args  | Returns |  Function
+--------+-------+---------+-----------
+ Rde    |  ---  | errors  | debugging
+ Rdo    |  ---  | power   | find actual laser power
+ Rdk    |  ---  | set pwr | check what you set power to
+ Rdx    |  ---  | status  | debugging
+        |       |         |  
+ Sti    |1-1000 |OK/ERROR | Set laser intensity
+ Stl    |0/1    |OK/ERROR | set laser off/on - actually starts emmission
+ Sto    |0/1    |OK/ERROR | set targeting laser off/on - red laser for aiming
+ Stp    |0/1    |OK/ERROR | set power off/on (think of it like a safety, turn on to be able to fire)
+        |       |         |  
+ Wrml   |0/1    |         | Enables control via commands if set to 0. Important.
+ Wrv    |0/1    |         | Disables virtual console mode, which spews a whole bunch of gibberish 
+        |       |         | and is only useful if you have a telnet tool or something. Set it to 0
+        |       |         |  
+
+ =====================================================================================================
+    Part 3: Descriptions
+ =====================================================================================================
+
+===============================================================
+ Rde (Read error) 
+===============================================================
+
+This is used for debugging errors. 
+Just going to copy-paste the real doccumentation:
+
+Each bit of response has individual meaning for error code:
+
+0:	Peltier-Cooler		Over temp
+1:	Peltier-Cooler		Under temp
+2:	Fiber temperature	Over temp
+3:	Fiber plugged control	Error
+4:	Interlock		Error during "Laser on"
+5:	Fatal Error		Peltier-Cooler > 40 deg C
+6:	Fatal Error		Peltier-Cooler < 10 deg C (why are you in Antarctica???)
+7:	Fatal Error		diode temp > 48 deg c
+8:	Fatal Error		diode temp < 5 deg c (again, how?)
+9:	USB-Heartbeat		USB unplugged.
+
+So the neat thing about this one is you get to do some fun math! It'll respond with a number and
+you need to convert that number to a hex value, and then to binary. Then, the 1s represent errors.
+
+For example:
+
+> Rde
+208
+
+String:		"208"
+Hex:		"0x208"
+Binary:		"1000001000"
+Means:		Bit 9 and Bit 3
+		Fiber heat over temp
+		USB disconnected
+
+===============================================================
+ Rdo (Read output) 
+===============================================================
+
+Read out laser emission value. Value is out of 1000, with 1000 being max theoretical power. We use
+it to update laser power in the interface code.
+
+===============================================================
+ Rdk (Read... internal set power?) 
+===============================================================
+
+Read the theoretical value you set the laser power to. Mostly just a handy debug tool.
+
+===============================================================
+ Rdx (Read status) 
+===============================================================
+
+Same deal as Rde with the converting to binary. I'll just list the bits here:
+
+0: 	PowerOn (stp value)
+1: 	LaserOn (stl value)
+2: 	Error
+3: 	Fatal Error (can't be reset)
+4:	Emission (laser is shooting laser at stuff)
+
+===============================================================
+ Sti[0-1000] (Set intensity) 
+===============================================================
+
+Set laser intensity from 0-1000.
+Eg: Sti1000 for 100% power.
+
+Note that this doesn't actually turn on the laser.
+
+===============================================================
+ Stl[0/1] (Set laser) 
+===============================================================
+
+Turns on/off laser emission at the specified intensity, assuming Stp=1
+
+===============================================================
+ Sto[0/1] (Set pilot laser) 
+===============================================================
+
+Turns on/off weak red aiming laser. Use to aim before turning on the invisible death ray.
+
+===============================================================
+ Stp[0/1] (Set power) 
+===============================================================
+
+Turns on/off laser power. Acts like a safety - Stl does nothing without Stp.
+
+===============================================================
+ Wrml[0/1] (Set control mode) 
+===============================================================
+
+If we actually bought the entire laser, we would have a physical control panel that can also control
+the laser. This is pretty nice, but since we don't have it, all Wrml1 does is stop you from issuing
+commands.
+
+If your commands aren't doing anything, try changing this to 0.
+
+===============================================================
+ Wrv[0/1] (Set terminal emulation) 
+===============================================================
+
+If you have a telnet program one of the features of the dilas laser is you can get a cool terminal
+program that controls it. The issue is, if you aren't using a telenet program, you will see a
+literal metric tonne of text spew down the screen.
+
+This is why. Set Wrv to 0. Never set it to 1 unless you have some reason.
+
+Also, if you use their interface (the pretty-looking one that only controls one laser) it sets Wrv1 
+when it closes because they assume you want terminal emulation.
+
+
+ =====================================================================================================
+  Part 4: Troubleshooting
+ =====================================================================================================
+
+
+===============================================================
+ It throws a connection error:
+===============================================================
+
+First, hahaha have fun
+
+Ok, here are some things to try:
+* Make sure laser is powered on and connected via USB
+* Double check you are connecting to the right lasers: Open up device manager, navigate to ports, and
+  check that when you unplug the laser you want to connect to, the right COM port is removed.
+* Turn off, unplug both ends of the USB cable connecting the laser, plug it back in, turn back on
+* Change USB cables, USB ports on the computer
+* suffer
+
+===============================================================
+ It responds "Error" to everything:
+===============================================================
+
+Use Rde and Rdx to get more specific. Type Str (reset error) to remove some minor errors.
+
+If that fails, restart the laser, relaunch the program, and reconnect.
+
+===============================================================
+ Holy cow why is there a literal metric tonne of text flying down the console what is this???:
+===============================================================
+
+Wrv0. Make sure you have all of the lasers selected.
+
+===============================================================
+ It's broken and your lame half-assed troubleshooting guide is worthless:
+===============================================================
+
+Send me an email at kenyonprater3.14 at gmail dot com. I'll be happy to help you out.
